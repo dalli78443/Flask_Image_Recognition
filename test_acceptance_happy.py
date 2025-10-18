@@ -69,3 +69,15 @@ def test_acceptance_valid_image_size_upload(client):
 
     assert response.status_code == 200
     assert b"Prediction" in response.data
+
+def test_acceptance_multiple_sequential_uploads(client):
+    """
+    Test Case: Multiple Sequential Uploads of Valid Images
+    - Purpose: Ensure the system can handle several valid
+      image uploads one after another without errors.
+    """
+    filenames = ["image1.jpg", "image2.jpg", "image3.jpg"]
+    for name in filenames:
+        response = simulate_image_upload(client, b"valid_image_data", name)
+        assert response.status_code == 200
+        assert b"Prediction" in response.data
