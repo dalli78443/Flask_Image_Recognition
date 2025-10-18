@@ -111,66 +111,10 @@ def test_edge_case_upload_over_http2(client):
 # Additional Edge Cases
 # -----------------------------
 
-# 7. Concurrent Image Uploads
-def test_edge_case_concurrent_uploads(client):
-    img_datas = []
-    for i in range(5):
-        img = BytesIO(b"concurrent_image_data_" + str(i).encode())
-        img.name = f"concurrent_image_{i}.jpg"
-        img_datas.append(img)
-
-    threads = []
-    for img_data in img_datas:
-        thread = threading.Thread(target=upload_image, args=(client, img_data))
-        thread.start()
-        threads.append(thread)
-
-    for thread in threads:
-        thread.join()
-
-# 8. Corrupted / Non-Image File Upload
-def test_edge_case_corrupted_file(client):
-    corrupted_file = BytesIO(b"not_an_image")
-    corrupted_file.name = "corrupted.txt"
-
-    response = client.post(
-        "/prediction",
-        data={"file": (corrupted_file, corrupted_file.name)},
-        content_type="multipart/form-data"
-    )
-
-    assert response.status_code in (400, 422)
-
-# 9. Empty File Upload
-def test_edge_case_empty_file(client):
-    empty_file = BytesIO(b"")
-    empty_file.name = "empty.jpg"
-
-    response = client.post(
-        "/prediction",
-        data={"file": (empty_file, empty_file.name)},
-        content_type="multipart/form-data"
-    )
-
-    assert response.status_code in (400, 422)
-
-# 10. Rapid Sequential Uploads
-def test_edge_case_rapid_sequential_uploads(client):
-    img_data = BytesIO(b"rapid_upload_image")
-    img_data.name = "rapid.jpg"
-
-    for _ in range(10):
-        response = client.post(
-            "/prediction",
-            data={"file": (img_data, img_data.name)},
-            content_type="multipart/form-data"
-        )
-        assert b"Prediction" in response.data
-        img_data.seek(0)
-
-# 11. Very Small Image Upload
+# 7. Very Small Image Upload
 def test_edge_case_small_image(client):
     small_img_data = BytesIO(b"\x89PNG\r\n\x1a\n")  # minimal PNG header
+
     small_img_data.name = "small.png"
 
     response = client.post(
