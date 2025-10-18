@@ -4,7 +4,14 @@
 """Acceptance tests for happy path scenarios in image
 upload and prediction."""
 from io import BytesIO
+import pytest
+from app import app
 
+@pytest.fixture
+def client():
+    """Flask test client fixture for happy path tests."""
+    with app.test_client() as client:
+        yield client
 
 def simulate_image_upload(client, image_bytes, filename="test_image.jpg"):
     """Helper to simulate an image upload to the
