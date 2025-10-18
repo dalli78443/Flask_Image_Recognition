@@ -79,7 +79,7 @@ def test_model_predictions_consistency(model):
 #1
 def test_preprocess_dtype():
     """Ensure that preprocess_img returns a float32 NumPy array."""
-    img_path = "test_images/1/Sign 1 (30).jpeg"
+    img_path = "test_images/1/Sign 1 (8).jpeg"
     processed_img = preprocess_img(img_path)
 
     assert processed_img.dtype == np.float32, \
@@ -88,7 +88,7 @@ def test_preprocess_dtype():
 #2
 def test_prediction_output_range(model):
     """Check that the predicted class is within the valid range of labels."""
-    img_path = "test_images/3/Sign 3 (50).jpeg"
+    img_path = "test_images/3/Sign 3 (99).jpeg"
     processed_img = preprocess_img(img_path)
 
     prediction = predict_result(processed_img)
