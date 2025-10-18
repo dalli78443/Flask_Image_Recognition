@@ -2,7 +2,7 @@
 
 import pytest
 from app import app
-from io import BytesIO
+
 
 @pytest.fixture
 def client():
