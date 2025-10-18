@@ -1,14 +1,13 @@
 # test_acceptance_edge_cases.py
 
 from io import BytesIO
-
+import threading
 
 # Helper function for concurrent image uploads
 def upload_image(client, img_data):
     """
     Helper function to upload an image within a thread.
     - Purpose: Enables concurrent uploads for testing multithreaded scenarios.
-    - Usage: Called in separate threads during concurrent tests.
     """
     client.post(
         "/prediction",
@@ -16,14 +15,13 @@ def upload_image(client, img_data):
         content_type="multipart/form-data"
     )
 
-# 1. Edge Case: Uploading a Large Image File
+# -----------------------------
+# Original Edge Cases
+# -----------------------------
+
+# 1. Large Image Upload
 def test_edge_case_large_image_upload(client):
-    """
-    Test uploading a large image to see how the system handles large file sizes.
-    - Scenario: Simulates a file upload with a large image (e.g., 10 MB).
-    - Expected Behavior: System should handle the file and return a valid prediction response.
-    """
-    large_img_data = BytesIO(b"large_image_data" * 10**6)  # Simulating a large image
+    large_img_data = BytesIO(b"large_image_data" * 10**6)  # Simulate ~10MB image
     large_img_data.name = "large_image.jpg"
 
     response = client.post(
@@ -32,16 +30,10 @@ def test_edge_case_large_image_upload(client):
         content_type="multipart/form-data"
     )
 
-    # Assert that the system can process large image files
-    assert b"Prediction" in response.data  # Adjust based on actual prediction content
+    assert b"Prediction" in response.data
 
-# 2. Edge Case: Uploading an Image with Missing or Incorrect Metadata
+# 2. Invalid / Missing Metadata
 def test_edge_case_invalid_metadata(client):
-    """
-    Test uploading an image with missing or incorrect metadata.
-    - Scenario: Upload an image without any metadata or with invalid metadata.
-    - Expected Behavior: System processes the image regardless of metadata issues.
-    """
     img_data = BytesIO(b"image_with_no_metadata")
     img_data.name = "image_no_metadata.jpg"
 
@@ -51,18 +43,12 @@ def test_edge_case_invalid_metadata(client):
         content_type="multipart/form-data"
     )
 
-    # Assert that the system processes the image even without metadata
-    assert b"Prediction" in response.data  # Adjust based on actual behavior
+    assert b"Prediction" in response.data
 
-# 3. Edge Case: Uploading an Image with Non-Standard File Extensions
+# 3. Non-Standard File Extension
 def test_edge_case_non_standard_image_extensions(client):
-    """
-    Test uploading images with non-standard file extensions.
-    - Scenario: Upload a file with an uncommon extension, e.g., .webp.
-    - Expected Behavior: System processes the file as a valid image.
-    """
     img_data = BytesIO(b"valid_image_data")
-    img_data.name = "non_standard_image.webp"  # Non-standard extension
+    img_data.name = "non_standard_image.webp"
 
     response = client.post(
         "/prediction",
@@ -70,51 +56,35 @@ def test_edge_case_non_standard_image_extensions(client):
         content_type="multipart/form-data"
     )
 
-    # Ensure the system processes the file despite the non-standard extension
-    assert b"Prediction" in response.data  # Adjust based on actual prediction content
+    assert b"Prediction" in response.data
 
-# 4. Edge Case: Uploading a Sequence of Images for Multi-Step Processing
+# 4. Sequential Uploads
 def test_edge_case_sequential_image_uploads(client):
-    """
-    Test uploading a sequence of images that trigger multi-step processing.
-    - Scenario: Simulate sequential uploads of multiple images.
-    - Expected Behavior: Each upload should trigger a separate valid prediction response.
-    """
     img_data1 = BytesIO(b"first_image_data")
     img_data1.name = "first_image.jpg"
 
     img_data2 = BytesIO(b"second_image_data")
     img_data2.name = "second_image.jpg"
 
-    # First upload
     response1 = client.post(
         "/prediction",
         data={"file": (img_data1, img_data1.name)},
         content_type="multipart/form-data"
     )
-
-    # Second upload
     response2 = client.post(
         "/prediction",
         data={"file": (img_data2, img_data2.name)},
         content_type="multipart/form-data"
     )
 
-    # Ensure that each upload processed correctly
     assert b"Prediction" in response1.data
     assert b"Prediction" in response2.data
 
-# 5. Edge Case: Uploading with Unexpected Headers
+# 5. Unexpected Headers
 def test_edge_case_unexpected_headers(client):
-    """
-    Test uploading an image with unexpected headers.
-    - Scenario: Simulate sending headers not expected by the system.
-    - Expected Behavior: System should still process the file without errors.
-    """
     img_data = BytesIO(b"valid_image_data")
     img_data.name = "unexpected_headers_image.jpg"
 
-    # Simulate uploading with unexpected headers
     response = client.post(
         "/prediction",
         data={"file": (img_data, img_data.name)},
@@ -122,25 +92,91 @@ def test_edge_case_unexpected_headers(client):
         headers={"X-Unexpected-Header": "value"}
     )
 
-    # Assert that the upload is still processed correctly despite the unexpected header
     assert b"Prediction" in response.data
 
-# 6. Edge Case: Uploading an Image with HTTP/2
+# 6. Upload Over HTTP/2
 def test_edge_case_upload_over_http2(client):
-    """
-    Test uploading an image using HTTP/2 protocol.
-    - Scenario: Simulate uploading an image over HTTP/2 protocol.
-    - Expected Behavior: System processes the upload as it would over HTTP/1.1.
-    """
     img_data = BytesIO(b"valid_image_data")
     img_data.name = "http2_image.jpg"
 
-    # Simulate uploading the image using HTTP/2 (client would need to support it)
     response = client.post(
         "/prediction",
         data={"file": (img_data, img_data.name)},
         content_type="multipart/form-data"
     )
 
-    # Ensure that the image upload works successfully over HTTP/2
+    assert b"Prediction" in response.data
+
+# -----------------------------
+# Additional Edge Cases
+# -----------------------------
+
+# 7. Concurrent Image Uploads
+def test_edge_case_concurrent_uploads(client):
+    img_datas = []
+    for i in range(5):
+        img = BytesIO(b"concurrent_image_data_" + str(i).encode())
+        img.name = f"concurrent_image_{i}.jpg"
+        img_datas.append(img)
+
+    threads = []
+    for img_data in img_datas:
+        thread = threading.Thread(target=upload_image, args=(client, img_data))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+
+# 8. Corrupted / Non-Image File Upload
+def test_edge_case_corrupted_file(client):
+    corrupted_file = BytesIO(b"not_an_image")
+    corrupted_file.name = "corrupted.txt"
+
+    response = client.post(
+        "/prediction",
+        data={"file": (corrupted_file, corrupted_file.name)},
+        content_type="multipart/form-data"
+    )
+
+    assert response.status_code in (400, 422)
+
+# 9. Empty File Upload
+def test_edge_case_empty_file(client):
+    empty_file = BytesIO(b"")
+    empty_file.name = "empty.jpg"
+
+    response = client.post(
+        "/prediction",
+        data={"file": (empty_file, empty_file.name)},
+        content_type="multipart/form-data"
+    )
+
+    assert response.status_code in (400, 422)
+
+# 10. Rapid Sequential Uploads
+def test_edge_case_rapid_sequential_uploads(client):
+    img_data = BytesIO(b"rapid_upload_image")
+    img_data.name = "rapid.jpg"
+
+    for _ in range(10):
+        response = client.post(
+            "/prediction",
+            data={"file": (img_data, img_data.name)},
+            content_type="multipart/form-data"
+        )
+        assert b"Prediction" in response.data
+        img_data.seek(0)
+
+# 11. Very Small Image Upload
+def test_edge_case_small_image(client):
+    small_img_data = BytesIO(b"\x89PNG\r\n\x1a\n")  # minimal PNG header
+    small_img_data.name = "small.png"
+
+    response = client.post(
+        "/prediction",
+        data={"file": (small_img_data, small_img_data.name)},
+        content_type="multipart/form-data"
+    )
+
     assert b"Prediction" in response.data
